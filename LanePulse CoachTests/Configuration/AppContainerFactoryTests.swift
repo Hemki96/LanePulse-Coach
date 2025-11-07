@@ -9,7 +9,7 @@ final class AppContainerFactoryTests: XCTestCase {
         let container = AppContainerFactory().make(configuration: configuration)
 
         XCTAssertTrue((container.logger as AnyObject) === (configuration.logger as AnyObject))
-        XCTAssertTrue(container.bleManager is BLEManager)
+        XCTAssertTrue(container.bleManager is BLEController)
         XCTAssertTrue(container.analyticsService is AnalyticsService)
         XCTAssertTrue(container.exportService is DataExportService)
         XCTAssertTrue(container.latencyMonitor is LatencyMonitor)

@@ -28,7 +28,17 @@ struct AppContainerFactory {
                                                    readContext: viewContext,
                                                    logger: logger)
 
-        let bleManager = BLEManager(logger: logger)
+        var hardwareAdapters: [BLEHardwareAdapter] = []
+#if canImport(CoreBluetooth)
+        hardwareAdapters.append(CoreBluetoothAdapter(logger: logger))
+#endif
+#if canImport(PolarBleSdk)
+        hardwareAdapters.append(PolarAdapter(logger: logger))
+#endif
+        let heartRateCoordinator = HeartRateStreamCoordinator(resampler: HeartRateResampler(interval: 1.0))
+        let bleManager = BLEController(logger: logger,
+                                       adapters: hardwareAdapters,
+                                       streamCoordinator: heartRateCoordinator)
         let analytics = AnalyticsService(logger: logger)
         let export = DataExportService(athleteRepository: athleteRepository,
                                        sensorRepository: sensorRepository,
