@@ -30,7 +30,8 @@ final class CoreBluetoothAdapter: NSObject, BLEHardwareAdapter {
     init(logger: Logging) {
         self.logger = logger
         super.init()
-        _ = centralManager
+        // Defer central manager creation until the first BLE interaction so app launch
+        // does not eagerly spin up CoreBluetooth on the main thread.
     }
 
     func startScanning() {
