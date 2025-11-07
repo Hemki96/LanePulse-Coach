@@ -20,7 +20,7 @@ struct LanePulse_CoachApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(container: container)
                 .environment(\.managedObjectContext, container.persistenceController.container.viewContext)
                 .environmentObject(container)
         }
