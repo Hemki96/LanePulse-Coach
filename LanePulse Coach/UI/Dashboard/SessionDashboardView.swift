@@ -20,6 +20,7 @@ struct SessionDashboardView: View {
                 }
             }
             .pickerStyle(.segmented)
+            .accessibilityIdentifier("view_mode_picker")
 
             Group {
                 switch viewModel.viewMode {
@@ -105,6 +106,7 @@ struct SessionDashboardView: View {
             .animation(.easeInOut, value: viewModel.layout)
             .padding(.vertical, 4)
         }
+        .accessibilityIdentifier("board_scroll")
     }
 
     @ToolbarContentBuilder
@@ -213,6 +215,7 @@ private struct BoardTileView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(snapshot.name) \(primaryData.title)")
         .accessibilityValue(primaryData.value)
+        .accessibilityIdentifier("board_tile_\(snapshot.id.uuidString)")
     }
 
     private func backgroundColor(for fraction: Double?) -> Color {
@@ -326,6 +329,7 @@ private struct DetailPaneView: View {
         .padding(16)
         .frame(maxWidth: .infinity)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .accessibilityIdentifier("detail_pane")
     }
 
     private var markerList: some View {
@@ -479,11 +483,13 @@ private struct ScoreboardView: View {
                     }
                     .padding()
                     .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .accessibilityIdentifier("scoreboard_tile_\(snapshot.id.uuidString)")
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
         }
+        .accessibilityIdentifier("scoreboard_scroll")
     }
 
     private func scoreColor(for snapshot: SessionDashboardViewModel.AthleteSnapshot) -> Color {
