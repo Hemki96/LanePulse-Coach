@@ -83,9 +83,17 @@ protocol BLEManaging: AnyObject {
 }
 
 #if canImport(Combine)
-protocol ObservableBLEManaging: BLEManaging, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {}
+protocol BLEScanStatePublishing: BLEManaging {
+    var isScanningPublisher: AnyPublisher<Bool, Never> { get }
+}
 
-extension BLEController: ObservableBLEManaging {}
+extension BLEController: BLEScanStatePublishing {
+    var isScanningPublisher: AnyPublisher<Bool, Never> {
+        $isScanning
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+}
 #endif
 
 protocol BLEHardwareAdapter: AnyObject {

@@ -49,6 +49,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
         self.context = context
         self.snapshot = .empty
         self.isScanning = bleManager.isScanning
+        logger.log(level: .debug, message: "SessionListViewModel initialized. Initial scanning state: \(bleManager.isScanning)")
         super.init()
         configureFetchedResultsController()
         bindScanningUpdates()
@@ -63,8 +64,10 @@ final class SessionListViewModel: NSObject, ObservableObject {
     }
 
     func addSession() {
+        logger.log(level: .debug, message: "Attempting to add a new session")
         do {
-            _ = try sessionRepository.createSession(SessionInput())
+            let record = try sessionRepository.createSession(SessionInput())
+            logger.log(level: .info, message: "Session successfully created", metadata: ["sessionID": record.id.uuidString])
             analyticsService.track(event: AnalyticsEvent(name: "session_created"))
         } catch {
             logger.log(level: .error, message: "Failed to add session: \(error.localizedDescription)")
@@ -72,6 +75,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
     }
 
     func deleteSessions(at offsets: IndexSet) {
+        logger.log(level: .debug, message: "Deleting sessions at offsets: \(offsets.map(String.init).joined(separator: ","))")
         let items = offsets.compactMap { index in
             snapshot.items[safe: index]
         }
@@ -84,6 +88,10 @@ final class SessionListViewModel: NSObject, ObservableObject {
 
         do {
             try sessionRepository.deleteSessions(records)
+            logger.log(level: .info,
+                       message: "Deleted sessions",
+                       metadata: ["count": "\(records.count)",
+                                  "sessionIDs": records.map { $0.id.uuidString }.joined(separator: ",")])
             analyticsService.track(event: AnalyticsEvent(name: "session_deleted",
                                                           metadata: ["count": "\(records.count)"]))
         } catch {
@@ -92,12 +100,16 @@ final class SessionListViewModel: NSObject, ObservableObject {
     }
 
     func toggleScanning() {
+        logger.log(level: .debug, message: "Toggling scanning. Current state: \(bleManager.isScanning)")
         if bleManager.isScanning {
             bleManager.stopScanning()
+            logger.log(level: .info, message: "Requested BLE scan stop")
         } else {
             bleManager.startScanning()
+            logger.log(level: .info, message: "Requested BLE scan start")
         }
         isScanning = bleManager.isScanning
+        logger.log(level: .debug, message: "Scanning state updated to: \(isScanning)")
     }
 
     func session(for objectID: NSManagedObjectID) -> SessionRecord? {
@@ -110,6 +122,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
     }
 
     private func configureFetchedResultsController() {
+        logger.log(level: .debug, message: "Configuring fetched results controller")
         let request: NSFetchRequest<SessionRecord> = SessionRecord.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: false)]
         let controller = NSFetchedResultsController(fetchRequest: request,
@@ -121,6 +134,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
 
         do {
             try fetchedResultsController.performFetch()
+            logger.log(level: .info, message: "Fetched initial sessions", metadata: ["count": "\(fetchedResultsController.fetchedObjects?.count ?? 0)"])
         } catch {
             logger.log(level: .error, message: "Failed to fetch sessions: \(error.localizedDescription)")
         }
@@ -130,6 +144,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
     private func updateSnapshot() {
         guard let sessions = fetchedResultsController.fetchedObjects else {
             snapshot = .empty
+            logger.log(level: .warning, message: "Fetched results controller returned no sessions; snapshot cleared")
             return
         }
 
@@ -141,20 +156,28 @@ final class SessionListViewModel: NSObject, ObservableObject {
         }
 
         snapshot = Snapshot(items: items)
+        logger.log(level: .debug, message: "Snapshot updated", metadata: ["count": "\(items.count)"])
     }
 
     private func bindScanningUpdates() {
-        guard let observableManager = bleManager as? ObservableBLEManaging else { return }
-        scanningCancellable = observableManager.objectWillChange
-            .sink { [weak self] _ in
+        guard let publishingManager = bleManager as? BLEScanStatePublishing else {
+            logger.log(level: .warning, message: "BLE manager does not publish scan state updates; scanning indicator may become stale")
+            return
+        }
+
+        scanningCancellable = publishingManager.isScanningPublisher
+            .receive(on: RunLoop.main)
+            .sink { [weak self] isScanning in
                 guard let self else { return }
-                self.isScanning = self.bleManager.isScanning
+                self.logger.log(level: .debug, message: "Received scan state update: \(isScanning)")
+                self.isScanning = isScanning
             }
     }
 }
 
 extension SessionListViewModel: NSFetchedResultsControllerDelegate {
     func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
+        logger.log(level: .debug, message: "Fetched results controller signalled content change")
         updateSnapshot()
     }
 }
