@@ -35,7 +35,7 @@ final class PolarAdapter: NSObject, BLEHardwareAdapter {
     init(logger: Logging) {
         self.logger = logger
         super.init()
-        _ = api
+        // Delay Polar SDK bootstrapping until needed to keep launch work minimal.
     }
 
     func startScanning() {

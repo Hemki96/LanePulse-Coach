@@ -125,6 +125,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
         logger.log(level: .debug, message: "Configuring fetched results controller")
         let request: NSFetchRequest<SessionRecord> = SessionRecord.fetchRequest()
         request.sortDescriptors = [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: false)]
+        request.fetchBatchSize = 50
         let controller = NSFetchedResultsController(fetchRequest: request,
                                                     managedObjectContext: context,
                                                     sectionNameKeyPath: nil,
