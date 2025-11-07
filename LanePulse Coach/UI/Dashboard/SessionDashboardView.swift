@@ -72,6 +72,14 @@ struct SessionDashboardView: View {
         } message: {
             Text(exportSuccessMessage ?? "")
         }
+        .overlay(alignment: .bottom) {
+            if let progress = viewModel.exportProgress {
+                ExportProgressView(progress: progress)
+                    .padding()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut, value: viewModel.exportProgress != nil)
     }
 
     private var header: some View {
@@ -144,17 +152,61 @@ struct SessionDashboardView: View {
                 Label("Export", systemImage: "square.and.arrow.up")
                     .labelStyle(.iconOnly)
             }
+            .disabled(viewModel.isExporting)
             .accessibilityLabel("Export")
         }
     }
 
     private func export() {
-        do {
-            let url = try viewModel.exportData(format: exportFormat)
-            exportSuccessMessage = "Export gespeichert in \(url.lastPathComponent)"
-        } catch {
-            viewModel.errorMessage = "Export fehlgeschlagen: \(error.localizedDescription)"
+        guard !viewModel.isExporting else { return }
+        exportSuccessMessage = nil
+        viewModel.errorMessage = nil
+        Task {
+            if let url = await viewModel.exportData(format: exportFormat) {
+                await MainActor.run {
+                    exportSuccessMessage = "Export gespeichert in \(url.lastPathComponent)"
+                }
+            }
         }
+    }
+}
+
+private struct ExportProgressView: View {
+    let progress: DataExportProgress
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Export: \(progress.stage.displayName)")
+                    .font(.footnote.weight(.semibold))
+                Spacer()
+                if let detail = detailText {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            progressView
+        }
+        .padding(12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .shadow(radius: 8)
+    }
+
+    @ViewBuilder
+    private var progressView: some View {
+        if progress.totalItems > 0 {
+            ProgressView(value: progress.fractionCompleted)
+                .progressViewStyle(.linear)
+        } else {
+            ProgressView()
+                .progressViewStyle(.linear)
+        }
+    }
+
+    private var detailText: String? {
+        guard progress.totalItems > 0, progress.stage != .completed else { return nil }
+        return "\(progress.processedItems)/\(progress.totalItems)"
     }
 }
 
