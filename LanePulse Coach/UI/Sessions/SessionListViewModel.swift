@@ -144,7 +144,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
     }
 
     private func bindScanningUpdates() {
-        guard let observableManager = bleManager as? (BLEManaging & ObservableObject) else { return }
+        guard let observableManager = bleManager as? ObservableBLEManaging else { return }
         scanningCancellable = observableManager.objectWillChange
             .sink { [weak self] _ in
                 guard let self else { return }

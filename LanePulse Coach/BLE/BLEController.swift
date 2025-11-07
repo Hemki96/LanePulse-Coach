@@ -82,6 +82,12 @@ protocol BLEManaging: AnyObject {
     func subscribeToHeartRate()
 }
 
+#if canImport(Combine)
+protocol ObservableBLEManaging: BLEManaging, ObservableObject where ObjectWillChangePublisher == ObservableObjectPublisher {}
+
+extension BLEController: ObservableBLEManaging {}
+#endif
+
 protocol BLEHardwareAdapter: AnyObject {
     var delegate: BLEHardwareAdapterDelegate? { get set }
 
