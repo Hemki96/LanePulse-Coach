@@ -67,7 +67,7 @@ final class HRSampleRepository: HRSampleRepositoryProtocol {
          maxBatchSize: Int = 120,
          pendingStore: PendingHRSampleStoring? = nil,
          notificationCenter: NotificationCenter = .default,
-         sceneDidEnterBackgroundNotification: Notification.Name = HRSampleRepository.defaultSceneDidEnterBackgroundNotification) {
+         sceneDidEnterBackgroundNotification: Notification.Name = HRSampleRepository.defaultSceneDidEnterBackgroundNotification()) {
         self.writeContext = writeContext
         self.readContext = readContext
         self.logger = logger

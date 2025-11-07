@@ -40,8 +40,8 @@ struct JSONObjectStreamWriter {
         }
     }
 
-    mutating func writeArray<Element: Encodable>(key: String,
-                                                  body: (inout JSONArrayStreamWriter) throws -> Void) throws {
+    mutating func writeArray(key: String,
+                             body: (inout JSONArrayStreamWriter) throws -> Void) throws {
         guard !isClosed else { return }
         if isFirstKey {
             isFirstKey = false

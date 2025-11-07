@@ -303,11 +303,11 @@ final class DataExportService: DataExporting {
         try writer.finish()
     }
 
-    private func stream<Record: NSManagedObject, DTO>(stage: DataExportProgress.Stage,
-                                                      request: NSFetchRequest<Record>,
-                                                      transform: (Record) -> DTO,
-                                                      progress progressHandler: ((DataExportProgress) -> Void)?,
-                                                      consume: ([DTO]) throws -> Void) throws {
+    private func stream<Record: NSManagedObject, DTO: Encodable>(stage: DataExportProgress.Stage,
+                                                                 request: NSFetchRequest<Record>,
+                                                                 transform: (Record) -> DTO,
+                                                                 progress progressHandler: ((DataExportProgress) -> Void)?,
+                                                                 consume: ([DTO]) throws -> Void) throws {
         let total = try exportContext.count(for: request)
         report(progress: DataExportProgress(stage: stage, processedItems: 0, totalItems: total), handler: progressHandler)
         guard total > 0 else { return }

@@ -82,6 +82,20 @@ protocol BLEManaging: AnyObject {
     func subscribeToHeartRate()
 }
 
+#if canImport(Combine)
+protocol BLEScanStatePublishing: BLEManaging {
+    var isScanningPublisher: AnyPublisher<Bool, Never> { get }
+}
+
+extension BLEController: BLEScanStatePublishing {
+    var isScanningPublisher: AnyPublisher<Bool, Never> {
+        $isScanning
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+}
+#endif
+
 protocol BLEHardwareAdapter: AnyObject {
     var delegate: BLEHardwareAdapterDelegate? { get set }
 
