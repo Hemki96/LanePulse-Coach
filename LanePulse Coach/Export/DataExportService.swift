@@ -17,6 +17,13 @@ enum DataExportFormat {
         case .json: return "json"
         }
     }
+
+    var mimeType: String {
+        switch self {
+        case .csv: return "text/csv"
+        case .json: return "application/json"
+        }
+    }
 }
 
 protocol DataExporting {
