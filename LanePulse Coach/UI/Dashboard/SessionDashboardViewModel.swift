@@ -169,6 +169,9 @@ final class SessionDashboardViewModel: ObservableObject {
     @Published var athletes: [AthleteRecord] = []
     @Published var sensors: [SensorRecord] = []
     @Published var errorMessage: String?
+    @Published var exportProgress: DataExportProgress?
+    @Published var isExporting: Bool = false
+    @Published var lastExportURL: URL?
 
     init(session: SessionRecord, container: AppContainer, coachProfileId: UUID = SessionDashboardViewModel.defaultCoachProfileId) {
         self.session = session
@@ -354,8 +357,35 @@ final class SessionDashboardViewModel: ObservableObject {
         }
     }
 
-    func exportData(format: DataExportFormat) throws -> URL {
-        try container.exportService.exportData(format: format)
+    @discardableResult
+    func exportData(format: DataExportFormat) async -> URL? {
+        guard !isExporting else { return nil }
+        errorMessage = nil
+        isExporting = true
+        exportProgress = DataExportProgress(stage: .preparing, processedItems: 0, totalItems: 0)
+
+        defer { isExporting = false }
+
+        do {
+            let url = try await container.exportService.export(
+                format: format,
+                progress: { [weak self] progress in
+                    guard let self else { return }
+                    Task { @MainActor in
+                        self.exportProgress = progress
+                    }
+                },
+                completion: nil
+            )
+            lastExportURL = url
+            exportProgress = nil
+            return url
+        } catch {
+            exportProgress = nil
+            lastExportURL = nil
+            errorMessage = "Export fehlgeschlagen: \(error.localizedDescription)"
+            return nil
+        }
     }
 
     func updateLayout(_ layout: BoardLayout) {

@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import CoreData
 
 enum DataExportFormat {
     case csv
@@ -26,103 +27,111 @@ enum DataExportFormat {
     }
 }
 
+struct DataExportProgress: Equatable {
+    enum Stage: String {
+        case preparing
+        case athletes
+        case sensors
+        case mappings
+        case sessions
+        case samples
+        case events
+        case metricConfigs
+        case finalizing
+        case completed
+
+        var displayName: String {
+            switch self {
+            case .preparing: return "Vorbereitung"
+            case .athletes: return "Athleten"
+            case .sensors: return "Sensoren"
+            case .mappings: return "Mappings"
+            case .sessions: return "Sessions"
+            case .samples: return "Herzfrequenzdaten"
+            case .events: return "Events"
+            case .metricConfigs: return "Metrik-Konfigurationen"
+            case .finalizing: return "Abschließen"
+            case .completed: return "Fertig"
+            }
+        }
+    }
+
+    let stage: Stage
+    let processedItems: Int
+    let totalItems: Int
+
+    var fractionCompleted: Double {
+        guard totalItems > 0 else {
+            return stage == .completed ? 1.0 : 0.0
+        }
+        return min(1.0, Double(processedItems) / Double(totalItems))
+    }
+}
+
 protocol DataExporting {
     @discardableResult
-    func exportData(format: DataExportFormat) throws -> URL
+    func export(format: DataExportFormat,
+                progress: ((DataExportProgress) -> Void)?,
+                completion: ((Result<URL, Error>) -> Void)?) async throws -> URL
 }
 
 final class DataExportService: DataExporting {
-    private let athleteRepository: AthleteRepositoryProtocol
-    private let sensorRepository: SensorRepositoryProtocol
-    private let mappingRepository: MappingRepositoryProtocol
-    private let sessionRepository: SessionRepositoryProtocol
-    private let hrSampleRepository: HRSampleRepositoryProtocol
-    private let eventRepository: EventRepositoryProtocol
-    private let metricConfigRepository: MetricConfigRepositoryProtocol
     private let logger: Logging
+    private let exportContext: NSManagedObjectContext
 
     private let dateFormatter: ISO8601DateFormatter
     private let csvExporter: CSVExporter
     private let jsonExporter: JSONExporter
 
-    init(athleteRepository: AthleteRepositoryProtocol,
-         sensorRepository: SensorRepositoryProtocol,
-         mappingRepository: MappingRepositoryProtocol,
-         sessionRepository: SessionRepositoryProtocol,
-         hrSampleRepository: HRSampleRepositoryProtocol,
-         eventRepository: EventRepositoryProtocol,
-         metricConfigRepository: MetricConfigRepositoryProtocol,
+    private enum Constants {
+        static let batchSize: Int = 500
+    }
+
+    init(athleteRepository _: AthleteRepositoryProtocol,
+         sensorRepository _: SensorRepositoryProtocol,
+         mappingRepository _: MappingRepositoryProtocol,
+         sessionRepository _: SessionRepositoryProtocol,
+         hrSampleRepository _: HRSampleRepositoryProtocol,
+         eventRepository _: EventRepositoryProtocol,
+         metricConfigRepository _: MetricConfigRepositoryProtocol,
+         exportContext: NSManagedObjectContext,
          logger: Logging) {
-        self.athleteRepository = athleteRepository
-        self.sensorRepository = sensorRepository
-        self.mappingRepository = mappingRepository
-        self.sessionRepository = sessionRepository
-        self.hrSampleRepository = hrSampleRepository
-        self.eventRepository = eventRepository
-        self.metricConfigRepository = metricConfigRepository
         self.logger = logger
+        self.exportContext = exportContext
         self.dateFormatter = ISO8601DateFormatter()
         self.dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         self.csvExporter = CSVExporter()
         self.jsonExporter = JSONExporter()
     }
 
-    func exportData(format: DataExportFormat) throws -> URL {
-        let snapshot = try buildSnapshot()
+    func export(format: DataExportFormat,
+                progress progressHandler: ((DataExportProgress) -> Void)? = nil,
+                completion completionHandler: ((Result<URL, Error>) -> Void)? = nil) async throws -> URL {
         let destinationDirectory = makeDestinationDirectory(for: format)
+        report(progress: DataExportProgress(stage: .preparing, processedItems: 0, totalItems: 0), handler: progressHandler)
 
-        switch format {
-        case .csv:
-            try writeCSV(snapshot: snapshot, to: destinationDirectory)
-        case .json:
-            try writeJSON(snapshot: snapshot, to: destinationDirectory)
+        do {
+            switch format {
+            case .csv:
+                try await exportContext.perform {
+                    try self.writeCSV(to: destinationDirectory, progress: progressHandler)
+                }
+            case .json:
+                try await exportContext.perform {
+                    try self.writeJSON(to: destinationDirectory, progress: progressHandler)
+                }
+            }
+
+            report(progress: DataExportProgress(stage: .finalizing, processedItems: 0, totalItems: 0), handler: progressHandler)
+            report(progress: DataExportProgress(stage: .completed, processedItems: 1, totalItems: 1), handler: progressHandler)
+            report(completion: .success(destinationDirectory), handler: completionHandler)
+            logger.log(level: .info, message: "Exported data in \(format) format to \(destinationDirectory.path)")
+            return destinationDirectory
+        } catch {
+            report(completion: .failure(error), handler: completionHandler)
+            logger.log(level: .error, message: "Export failed: \(error.localizedDescription)")
+            throw error
         }
-
-        logger.log(level: .info, message: "Exported data in \(format) format to \(destinationDirectory.path)")
-        return destinationDirectory
-    }
-
-    private func buildSnapshot() throws -> ExportSnapshot {
-        let athletes = try athleteRepository.fetchAll().map(mapAthlete)
-        let sensors = try sensorRepository.fetchAll().map(mapSensor)
-        let mappings = try mappingRepository.fetchAll().map(mapMapping)
-        let sessions = try sessionRepository.fetchAllSessions().map(mapSession)
-        let samples = try hrSampleRepository.fetchSamples(sessionId: nil).map(mapSample)
-        let events = try eventRepository.fetchAll().map(mapEvent)
-        let metricConfigs = try metricConfigRepository.fetchAll().map(mapMetricConfig)
-
-        return ExportSnapshot(athletes: athletes,
-                              sensors: sensors,
-                              mappings: mappings,
-                              sessions: sessions,
-                              samples: samples,
-                              events: events,
-                              metricConfigs: metricConfigs)
-    }
-
-    private func writeCSV(snapshot: ExportSnapshot, to directory: URL) throws {
-        try write(csvExporter.makeCSV(from: snapshot.athletes), named: "athletes.csv", at: directory)
-        try write(csvExporter.makeCSV(from: snapshot.sensors), named: "sensors.csv", at: directory)
-        try write(csvExporter.makeCSV(from: snapshot.mappings), named: "mappings.csv", at: directory)
-        try write(csvExporter.makeCSV(from: snapshot.sessions), named: "sessions.csv", at: directory)
-        try write(csvExporter.makeCSV(from: snapshot.samples), named: "hr_samples.csv", at: directory)
-        try write(csvExporter.makeCSV(from: snapshot.events), named: "events.csv", at: directory)
-        try write(csvExporter.makeCSV(from: snapshot.metricConfigs), named: "metric_configs.csv", at: directory)
-    }
-
-    private func writeJSON(snapshot: ExportSnapshot, to directory: URL) throws {
-        let data = try jsonExporter.makeJSON(from: snapshot)
-        try write(data, named: "lanepulse_export.json", at: directory)
-    }
-
-    private func write(_ string: String, named fileName: String, at directory: URL) throws {
-        let url = directory.appendingPathComponent(fileName)
-        try string.write(to: url, atomically: true, encoding: .utf8)
-    }
-
-    private func write(_ data: Data, named fileName: String, at directory: URL) throws {
-        let url = directory.appendingPathComponent(fileName)
-        try data.write(to: url, options: .atomic)
     }
 
     private func makeDestinationDirectory(for format: DataExportFormat) -> URL {
@@ -137,6 +146,206 @@ final class DataExportService: DataExporting {
         }
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         return directory
+    }
+
+    private func writeCSV(to directory: URL, progress progressHandler: ((DataExportProgress) -> Void)?) throws {
+        do {
+            var writer = try csvExporter.makeWriter(for: AthleteExportDTO.self, url: directory.appendingPathComponent("athletes.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .athletes,
+                       request: makeFetchRequest(AthleteRecord.self, sort: [NSSortDescriptor(keyPath: \AthleteRecord.name, ascending: true)]),
+                       transform: mapAthlete,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+
+        do {
+            var writer = try csvExporter.makeWriter(for: SensorExportDTO.self, url: directory.appendingPathComponent("sensors.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .sensors,
+                       request: makeFetchRequest(SensorRecord.self, sort: [NSSortDescriptor(keyPath: \SensorRecord.vendor, ascending: true)]),
+                       transform: mapSensor,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+
+        do {
+            var writer = try csvExporter.makeWriter(for: MappingExportDTO.self, url: directory.appendingPathComponent("mappings.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .mappings,
+                       request: makeFetchRequest(MappingRecord.self, sort: [NSSortDescriptor(keyPath: \MappingRecord.since, ascending: true)]),
+                       transform: mapMapping,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+
+        do {
+            var writer = try csvExporter.makeWriter(for: SessionExportDTO.self, url: directory.appendingPathComponent("sessions.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .sessions,
+                       request: makeFetchRequest(SessionRecord.self, sort: [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: true)]),
+                       transform: mapSession,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+
+        do {
+            var writer = try csvExporter.makeWriter(for: HRSampleExportDTO.self, url: directory.appendingPathComponent("hr_samples.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .samples,
+                       request: makeFetchRequest(HRSampleRecord.self, sort: [NSSortDescriptor(keyPath: \HRSampleRecord.timestamp, ascending: true)]),
+                       transform: mapSample,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+
+        do {
+            var writer = try csvExporter.makeWriter(for: EventExportDTO.self, url: directory.appendingPathComponent("events.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .events,
+                       request: makeFetchRequest(EventRecord.self, sort: [NSSortDescriptor(keyPath: \EventRecord.start, ascending: true)]),
+                       transform: mapEvent,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+
+        do {
+            var writer = try csvExporter.makeWriter(for: MetricConfigExportDTO.self, url: directory.appendingPathComponent("metric_configs.csv"))
+            defer { try? writer.finish() }
+            try stream(stage: .metricConfigs,
+                       request: makeFetchRequest(MetricConfigRecord.self, sort: [NSSortDescriptor(keyPath: \MetricConfigRecord.coachProfileId, ascending: true)]),
+                       transform: mapMetricConfig,
+                       progress: progressHandler) { values in
+                try writer.append(contentsOf: values)
+            }
+        }
+    }
+
+    private func writeJSON(to directory: URL, progress progressHandler: ((DataExportProgress) -> Void)?) throws {
+        let url = directory.appendingPathComponent("lanepulse_export.json")
+        var writer = try jsonExporter.makeWriter(url: url)
+        defer { try? writer.finish() }
+
+        try writer.writeArray(key: "athletes") { array in
+            try self.stream(stage: .athletes,
+                            request: self.makeFetchRequest(AthleteRecord.self, sort: [NSSortDescriptor(keyPath: \AthleteRecord.name, ascending: true)]),
+                            transform: self.mapAthlete,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+
+        try writer.writeArray(key: "sensors") { array in
+            try self.stream(stage: .sensors,
+                            request: self.makeFetchRequest(SensorRecord.self, sort: [NSSortDescriptor(keyPath: \SensorRecord.vendor, ascending: true)]),
+                            transform: self.mapSensor,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+
+        try writer.writeArray(key: "mappings") { array in
+            try self.stream(stage: .mappings,
+                            request: self.makeFetchRequest(MappingRecord.self, sort: [NSSortDescriptor(keyPath: \MappingRecord.since, ascending: true)]),
+                            transform: self.mapMapping,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+
+        try writer.writeArray(key: "sessions") { array in
+            try self.stream(stage: .sessions,
+                            request: self.makeFetchRequest(SessionRecord.self, sort: [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: true)]),
+                            transform: self.mapSession,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+
+        try writer.writeArray(key: "samples") { array in
+            try self.stream(stage: .samples,
+                            request: self.makeFetchRequest(HRSampleRecord.self, sort: [NSSortDescriptor(keyPath: \HRSampleRecord.timestamp, ascending: true)]),
+                            transform: self.mapSample,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+
+        try writer.writeArray(key: "events") { array in
+            try self.stream(stage: .events,
+                            request: self.makeFetchRequest(EventRecord.self, sort: [NSSortDescriptor(keyPath: \EventRecord.start, ascending: true)]),
+                            transform: self.mapEvent,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+
+        try writer.writeArray(key: "metricConfigs") { array in
+            try self.stream(stage: .metricConfigs,
+                            request: self.makeFetchRequest(MetricConfigRecord.self, sort: [NSSortDescriptor(keyPath: \MetricConfigRecord.coachProfileId, ascending: true)]),
+                            transform: self.mapMetricConfig,
+                            progress: progressHandler) { values in
+                try array.append(contentsOf: values)
+            }
+        }
+    }
+
+    private func writeCSV<T: CSVConvertible>(_ values: [T], fileName: String, directory: URL) throws {
+        let url = directory.appendingPathComponent(fileName)
+        var writer = try csvExporter.makeWriter(for: T.self, url: url)
+        try writer.append(contentsOf: values)
+        try writer.finish()
+    }
+
+    private func stream<Record: NSManagedObject, DTO>(stage: DataExportProgress.Stage,
+                                                      request: NSFetchRequest<Record>,
+                                                      transform: (Record) -> DTO,
+                                                      progress progressHandler: ((DataExportProgress) -> Void)?,
+                                                      consume: ([DTO]) throws -> Void) throws {
+        let total = try exportContext.count(for: request)
+        report(progress: DataExportProgress(stage: stage, processedItems: 0, totalItems: total), handler: progressHandler)
+        guard total > 0 else { return }
+
+        var processed = 0
+        while true {
+            request.fetchOffset = processed
+            request.fetchLimit = Constants.batchSize
+            let records = try exportContext.fetch(request)
+            if records.isEmpty { break }
+            let mapped = records.map(transform)
+            try consume(mapped)
+            processed += records.count
+            report(progress: DataExportProgress(stage: stage, processedItems: processed, totalItems: total), handler: progressHandler)
+            records.forEach { exportContext.refresh($0, mergeChanges: false) }
+        }
+    }
+
+    private func makeFetchRequest<T: NSManagedObject>(_ type: T.Type, sort: [NSSortDescriptor]) -> NSFetchRequest<T> {
+        let request = T.fetchRequest() as! NSFetchRequest<T>
+        request.sortDescriptors = sort
+        request.fetchBatchSize = Constants.batchSize
+        request.returnsObjectsAsFaults = false
+        return request
+    }
+
+    private func report(progress: DataExportProgress, handler: ((DataExportProgress) -> Void)?) {
+        guard let handler else { return }
+        DispatchQueue.main.async {
+            handler(progress)
+        }
+    }
+
+    private func report(completion: Result<URL, Error>, handler: ((Result<URL, Error>) -> Void)?) {
+        guard let handler else { return }
+        DispatchQueue.main.async {
+            handler(completion)
+        }
     }
 
     private func mapAthlete(_ record: AthleteRecord) -> AthleteExportDTO {

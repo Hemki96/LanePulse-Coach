@@ -15,6 +15,9 @@ struct AppContainerFactory {
         let backgroundContext = persistenceController.container.newBackgroundContext()
         backgroundContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
         backgroundContext.automaticallyMergesChangesFromParent = true
+        let exportContext = persistenceController.container.newBackgroundContext()
+        exportContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        exportContext.automaticallyMergesChangesFromParent = true
 
         let logger = configuration.logger
 
@@ -47,6 +50,7 @@ struct AppContainerFactory {
                                        hrSampleRepository: hrSampleRepository,
                                        eventRepository: eventRepository,
                                        metricConfigRepository: metricConfigRepository,
+                                       exportContext: exportContext,
                                        logger: logger)
         let latencyMonitor = LatencyMonitor(analytics: analytics,
                                             logger: logger,

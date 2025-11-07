@@ -28,18 +28,24 @@ final class SharingCoordinator {
     }
 
     func share(format: DataExportFormat, completion: @escaping (Result<SharingMetadata, Error>) -> Void) {
-        do {
-            let url = try exporter.exportData(format: format)
-            let metadata = SharingMetadata(fileURL: url,
-                                           fileName: url.lastPathComponent,
-                                           mimeType: format.mimeType,
-                                           exportedAt: clock())
-            presenter.presentShareSheet(with: metadata)
-            logger.log(level: .info, message: "Prepared export for sharing", metadata: ["file": metadata.fileName])
-            completion(.success(metadata))
-        } catch {
-            logger.log(level: .error, message: "Failed to export data: \(error.localizedDescription)")
-            completion(.failure(error))
+        Task {
+            do {
+                let url = try await exporter.export(format: format, progress: nil, completion: nil)
+                let metadata = SharingMetadata(fileURL: url,
+                                               fileName: url.lastPathComponent,
+                                               mimeType: format.mimeType,
+                                               exportedAt: clock())
+                await MainActor.run {
+                    presenter.presentShareSheet(with: metadata)
+                    completion(.success(metadata))
+                }
+                logger.log(level: .info, message: "Prepared export for sharing", metadata: ["file": metadata.fileName])
+            } catch {
+                logger.log(level: .error, message: "Failed to export data: \(error.localizedDescription)")
+                await MainActor.run {
+                    completion(.failure(error))
+                }
+            }
         }
     }
 }

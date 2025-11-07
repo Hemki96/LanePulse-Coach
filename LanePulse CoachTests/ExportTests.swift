@@ -18,7 +18,11 @@ final class ExportTests: XCTestCase {
             Athlete(name: "Tom", notes: "Needs \"breathing\" focus, lane 3")
         ]
 
-        let csv = CSVExporter().makeCSV(from: models)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("csv")
+        var writer = try CSVExporter().makeWriter(for: Athlete.self, url: url)
+        try writer.append(contentsOf: models)
+        try writer.finish()
+        let csv = try String(contentsOf: url)
         let lines = csv.split(separator: "\n").map(String.init)
         XCTAssertEqual(lines.first, "name,notes")
         XCTAssertEqual(lines.count, 3)
@@ -31,8 +35,11 @@ final class ExportTests: XCTestCase {
             var csvRow: [String : String] { [:] }
         }
 
-        let csv = CSVExporter().makeCSV(from: [EmptyModel]())
-        XCTAssertEqual(csv, "id,value")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension("csv")
+        var writer = try CSVExporter().makeWriter(for: EmptyModel.self, url: url)
+        try writer.finish()
+        let csv = try String(contentsOf: url)
+        XCTAssertEqual(csv.trimmingCharacters(in: .whitespacesAndNewlines), "id,value")
     }
 
     func testSharingCoordinatorSuccessFlow() throws {
@@ -58,7 +65,7 @@ final class ExportTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 0.1)
+        wait(for: [expectation], timeout: 1.0)
         XCTAssertEqual(logger.entries.last?.level, .info)
     }
 
@@ -82,7 +89,7 @@ final class ExportTests: XCTestCase {
             expectation.fulfill()
         }
 
-        wait(for: [expectation], timeout: 0.1)
+        wait(for: [expectation], timeout: 1.0)
         XCTAssertNil(presenter.presentedMetadata)
         XCTAssertEqual(logger.entries.last?.level, .error)
     }
@@ -102,9 +109,16 @@ private final class MockExporter: DataExporting {
         self.error = error
     }
 
-    func exportData(format: DataExportFormat) throws -> URL {
-        if let error { throw error }
-        return result ?? URL(fileURLWithPath: "")
+    func export(format: DataExportFormat,
+                progress: ((DataExportProgress) -> Void)? = nil,
+                completion: ((Result<URL, Error>) -> Void)? = nil) async throws -> URL {
+        if let error {
+            completion?(.failure(error))
+            throw error
+        }
+        let url = result ?? URL(fileURLWithPath: "")
+        completion?(.success(url))
+        return url
     }
 }
 
