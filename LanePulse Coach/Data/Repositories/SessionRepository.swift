@@ -2,16 +2,35 @@
 //  SessionRepository.swift
 //  LanePulse Coach
 //
-//  Created to manage CoreData-backed session persistence.
+//  Manages CoreData-backed session persistence.
 //
 
 import Foundation
 import CoreData
 
+struct SessionInput {
+    let id: UUID
+    let startDate: Date
+    let laneGroup: String?
+    let coachNotes: String?
+
+    init(id: UUID = UUID(),
+         startDate: Date = Date(),
+         laneGroup: String? = nil,
+         coachNotes: String? = nil) {
+        self.id = id
+        self.startDate = startDate
+        self.laneGroup = laneGroup
+        self.coachNotes = coachNotes
+    }
+}
+
 protocol SessionRepositoryProtocol {
-    func createSession(at date: Date) throws
+    @discardableResult
+    func createSession(_ input: SessionInput) throws -> SessionRecord
     func deleteSessions(_ sessions: [SessionRecord]) throws
     func fetchAllSessions() throws -> [SessionRecord]
+    func fetchSession(id: UUID) throws -> SessionRecord?
 }
 
 final class SessionRepository: SessionRepositoryProtocol {
@@ -23,11 +42,16 @@ final class SessionRepository: SessionRepositoryProtocol {
         self.logger = logger
     }
 
-    func createSession(at date: Date = Date()) throws {
+    @discardableResult
+    func createSession(_ input: SessionInput) throws -> SessionRecord {
         let record = SessionRecord(context: context)
-        record.timestamp = date
+        record.id = input.id
+        record.startDate = input.startDate
+        record.laneGroup = input.laneGroup
+        record.coachNotes = input.coachNotes
         try saveContext()
-        logger.log(level: .info, message: "Persisted session at \(date)")
+        logger.log(level: .info, message: "Persisted session \(input.id.uuidString)")
+        return record
     }
 
     func deleteSessions(_ sessions: [SessionRecord]) throws {
@@ -38,8 +62,15 @@ final class SessionRepository: SessionRepositoryProtocol {
 
     func fetchAllSessions() throws -> [SessionRecord] {
         let request: NSFetchRequest<SessionRecord> = SessionRecord.fetchRequest()
-        request.sortDescriptors = [NSSortDescriptor(keyPath: \SessionRecord.timestamp, ascending: false)]
+        request.sortDescriptors = [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: false)]
         return try context.fetch(request)
+    }
+
+    func fetchSession(id: UUID) throws -> SessionRecord? {
+        let request: NSFetchRequest<SessionRecord> = SessionRecord.fetchRequest()
+        request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+        request.fetchLimit = 1
+        return try context.fetch(request).first
     }
 
     private func saveContext() throws {

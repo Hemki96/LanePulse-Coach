@@ -10,9 +10,11 @@ struct ContentView: View {
     @EnvironmentObject private var appContainer: AppContainer
 
     @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \SessionRecord.timestamp, ascending: false)],
+        sortDescriptors: [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: false)],
         animation: .default
     ) private var sessions: FetchedResults<SessionRecord>
+
+    @State private var exportFormat: DataExportFormat = .csv
 
     var body: some View {
         NavigationSplitView {
@@ -23,10 +25,18 @@ struct ContentView: View {
                             Text("Training Session")
                                 .font(.title3)
                                 .bold()
-                            Text(session.timestamp, style: .date)
-                            Text(session.timestamp, style: .time)
-                            Button("Export Sessions") {
-                                exportSessions()
+                            Text(session.startDate, style: .date)
+                            Text(session.startDate, style: .time)
+                            if let lane = session.laneGroup {
+                                Text("Lane: \(lane)")
+                            }
+                            Picker("Export Format", selection: $exportFormat) {
+                                Text("CSV").tag(DataExportFormat.csv)
+                                Text("JSON").tag(DataExportFormat.json)
+                            }
+                            .pickerStyle(.segmented)
+                            Button("Export Data") {
+                                exportData()
                             }
                             .buttonStyle(.borderedProminent)
                         }
@@ -34,9 +44,9 @@ struct ContentView: View {
                         .navigationTitle("Details")
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(session.timestamp, style: .time)
+                            Text(session.startDate, style: .time)
                                 .font(.headline)
-                            Text(session.timestamp, style: .date)
+                            Text(session.startDate, style: .date)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -71,7 +81,7 @@ struct ContentView: View {
 
     private func addSession() {
         do {
-            try appContainer.sessionRepository.createSession(at: Date())
+            _ = try appContainer.sessionRepository.createSession(SessionInput())
             appContainer.analyticsService.track(event: AnalyticsEvent(name: "session_created"))
         } catch {
             appContainer.logger.log(level: .error, message: "Failed to add session: \(error.localizedDescription)")
@@ -88,10 +98,10 @@ struct ContentView: View {
         }
     }
 
-    private func exportSessions() {
+    private func exportData() {
         do {
-            let url = try appContainer.exportService.exportSessions()
-            appContainer.logger.log(level: .info, message: "Exported sessions to \(url.path)")
+            let url = try appContainer.exportService.exportData(format: exportFormat)
+            appContainer.logger.log(level: .info, message: "Exported data to \(url.path)")
         } catch {
             appContainer.logger.log(level: .error, message: "Export error: \(error.localizedDescription)")
         }
