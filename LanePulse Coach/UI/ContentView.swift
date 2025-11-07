@@ -29,6 +29,7 @@ struct ContentView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .accessibilityIdentifier("session_row_\(session.id.uuidString)")
                 }
                 .onDelete(perform: deleteSessions)
             }

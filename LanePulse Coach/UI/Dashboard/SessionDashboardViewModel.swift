@@ -146,6 +146,7 @@ final class SessionDashboardViewModel: ObservableObject {
     private let session: SessionRecord
     private let container: AppContainer
     private let coachProfileId: UUID
+    private let latencyMonitor: LatencyMonitoring
 
     @Published var layout: BoardLayout = .twoByTwo {
         didSet { persistConfig() }
@@ -170,6 +171,7 @@ final class SessionDashboardViewModel: ObservableObject {
         self.session = session
         self.container = container
         self.coachProfileId = coachProfileId
+        self.latencyMonitor = container.latencyMonitor
         loadConfig()
         Task { await refresh() }
     }
@@ -430,6 +432,15 @@ final class SessionDashboardViewModel: ObservableObject {
             let snapshots = athletes.map { athlete in
                 let athleteSamples = grouped[athlete.id] ?? []
                 return makeSnapshot(for: athlete, samples: athleteSamples)
+            }
+            for snapshot in snapshots {
+                if let timestamp = snapshot.lastUpdated {
+                    let latency = Date().timeIntervalSince(timestamp)
+                    latencyMonitor.recordLatency(streamId: snapshot.id,
+                                                 label: snapshot.name,
+                                                 sampleTimestamp: timestamp,
+                                                 latency: latency)
+                }
             }
             self.snapshots = snapshots
         } catch {
