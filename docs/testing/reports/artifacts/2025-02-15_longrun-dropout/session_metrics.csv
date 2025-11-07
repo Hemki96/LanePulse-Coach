@@ -1,0 +1,6 @@
+timestamp,segment,avg_latency_ms,dropout_duration_s,notes
+2025-02-15T18:00:00Z,Warmup 0-15min,145,0,"Stabile Verbindung"
+2025-02-15T18:15:00Z,Main Set 15-45min,149,0,"HR linear"
+2025-02-15T18:45:00Z,Main Set 45-75min,151,8,"Dropout simuliert via Abschirmung"
+2025-02-15T19:15:00Z,Cooldown 75-95min,147,0,"Reconnection <5s"
+2025-02-15T19:35:00Z,Buffer 95-105min,150,0,"Session Ende"

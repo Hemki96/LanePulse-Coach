@@ -41,8 +41,8 @@ approved:
 ## Status-Tracking
 - Abgedeckte Kombinationen werden in [`docs/testing/reports`](reports/README.md) mit Checklisten dokumentiert.
 - Offene Lücken (Ticket-Backlog):
-  - [ ] iPad mini (6. Gen) + Garmin HRM-Pro Plus (Firmware 2.5) → Ticket QA-17
-  - [ ] Ausdauer-Session > 90 min mit Dropout-Simulation → Ticket QA-18
+- [x] iPad mini (6. Gen) + Garmin HRM-Pro Plus (Firmware 2.5) → Ticket QA-17 ([Report](reports/2025-02-15_ipad-mini-garmin.md))
+- [x] Ausdauer-Session > 90 min mit Dropout-Simulation → Ticket QA-18 ([Report](reports/2025-02-15_longrun-dropout.md))
 
 ## Wartung
 - Matrix vierteljährlich überprüfen (QA-Meeting).
