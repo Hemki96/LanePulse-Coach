@@ -2,23 +2,22 @@
     title: "Architecture Decision Records"
     owner: "Christian Hemker"
     status: "Draft"
-    version: "0.1.0"
-    updated: "2025-11-07"
-    ---
+    version: "0.2.0"
+    updated: "2025-11-08"
+---
 
-# ADRs (Kurzform)
+# ADR-Übersicht
 
-## ADR-001: iPad als Central, BLE-only
-- **Kontext**: Hallenbad ohne Internet
-- **Entscheidung**: iPad Central; keine Cloud
-- **Konsequenzen**: Fokus auf Reconnect/Robustheit
+| ID | Titel | Status | Link |
+|----|-------|--------|------|
+| ADR-001 | iPad als BLE-Central ohne Cloud | Approved | [docs/decisions/ADR-001-ipad-central.md](decisions/ADR-001-ipad-central.md) |
+| ADR-002 | 1 Hz Resampling mit EWMA | Approved | [docs/decisions/ADR-002-resampling-ewma.md](decisions/ADR-002-resampling-ewma.md) |
+| ADR-003 | Core Data (SQLite) Persistenz | Approved | [docs/decisions/ADR-003-coredata-persistence.md](decisions/ADR-003-coredata-persistence.md) |
 
-## ADR-002: Resampling 1 Hz + EWMA
-- **Kontext**: Rauschen & Jitter
-- **Entscheidung**: Einheitliche 1 Hz Pipeline, EWMA α≈0,3
-- **Konsequenzen**: Stabile Anzeigen, kalkulierbare Latenz
+## Nächste Kandidaten
+- ADR-004: Export-Pipeline & Datenschutz (in Arbeit)
+- ADR-005: Architektur UI-State-Management (SwiftData vs. ObservableObjects)
 
-## ADR-003: CoreData (+ SQLite) Persistenz
-- **Kontext**: Offline, einfache Abfragen
-- **Entscheidung**: CoreData für Samples/Events
-- **Konsequenzen**: Solide Apple-Stack-Integration
+## Pflegehinweise
+- Neue Entscheidungen basieren auf [TEMPLATE-ADR.md](templates/TEMPLATE-ADR.md).
+- Statusänderungen (Approved/Superseded) im Log pflegen und im jeweiligen ADR dokumentieren.

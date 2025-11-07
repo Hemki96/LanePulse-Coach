@@ -55,7 +55,7 @@ Im Target `LanePulse CoachUITests` befindet sich der Test [`BLESimulationUITests
 
 ### 5.3 Nachbereitung
 
-- Ergebnisse im QA-Template unter `docs/testing/reports` dokumentieren.
+- Ergebnisse im QA-Template unter [`docs/testing/reports/README.md`](reports/README.md) dokumentieren.
 - Bei Fehlern Ticket inklusive Log-Export und Firmwarestand erstellen.
 
 ## 6. Erweiterungen & Wartung
