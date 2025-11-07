@@ -7,52 +7,59 @@ import SwiftUI
 import CoreData
 
 struct ContentView: View {
-    @EnvironmentObject private var appContainer: AppContainer
+    @StateObject private var viewModel: SessionListViewModel
+    private let container: AppContainer
 
-    @FetchRequest(
-        sortDescriptors: [NSSortDescriptor(keyPath: \SessionRecord.startDate, ascending: false)],
-        animation: .default
-    ) private var sessions: FetchedResults<SessionRecord>
+    init(container: AppContainer) {
+        self.container = container
+        _viewModel = StateObject(wrappedValue: SessionListViewModel(container: container))
+    }
 
     var body: some View {
         NavigationSplitView {
             List {
-                ForEach(sessions) { session in
+                ForEach(viewModel.snapshot.items) { item in
                     NavigationLink {
-                        SessionDashboardView(session: session, container: appContainer)
+                        if let session = viewModel.session(for: item.objectID) {
+                            SessionDashboardView(session: session, container: container)
+                        } else {
+                            VStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle")
+                                    .font(.title2)
+                                    .foregroundStyle(.secondary)
+                                Text("Session konnte nicht geladen werden")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        }
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(session.startDate, style: .time)
+                            Text(item.startDate, style: .time)
                                 .font(.headline)
-                            Text(session.startDate, style: .date)
+                            Text(item.startDate, style: .date)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
-                    .accessibilityIdentifier("session_row_\(session.id.uuidString)")
+                    .accessibilityIdentifier("session_row_\(item.sessionID.uuidString)")
                 }
-                .onDelete(perform: deleteSessions)
+                .onDelete(perform: viewModel.deleteSessions)
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button {
-                        if appContainer.bleManager.isScanning {
-                            appContainer.bleManager.stopScanning()
-                        } else {
-                            appContainer.bleManager.startScanning()
-                        }
-                    } label: {
-                        Label("Scan", systemImage: appContainer.bleManager.isScanning ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right")
+                    Button(action: viewModel.toggleScanning) {
+                        Label("Scan", systemImage: viewModel.isScanning ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right")
                             .labelStyle(.iconOnly)
                     }
-                    .accessibilityLabel(appContainer.bleManager.isScanning ? "Scan stoppen" : "Scan starten")
-                    .accessibilityValue(appContainer.bleManager.isScanning ? "Aktiv" : "Inaktiv")
+                    .accessibilityLabel(viewModel.isScanning ? "Scan stoppen" : "Scan starten")
+                    .accessibilityValue(viewModel.isScanning ? "Aktiv" : "Inaktiv")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: addSession) {
+                    Button(action: viewModel.addSession) {
                         Label("Add Session", systemImage: "plus")
                     }
                 }
@@ -71,31 +78,11 @@ struct ContentView: View {
             .padding()
         }
     }
-
-    private func addSession() {
-        do {
-            _ = try appContainer.sessionRepository.createSession(SessionInput())
-            appContainer.analyticsService.track(event: AnalyticsEvent(name: "session_created"))
-        } catch {
-            appContainer.logger.log(level: .error, message: "Failed to add session: \(error.localizedDescription)")
-        }
-    }
-
-    private func deleteSessions(offsets: IndexSet) {
-        let records = offsets.map { sessions[$0] }
-        do {
-            try appContainer.sessionRepository.deleteSessions(records)
-            appContainer.analyticsService.track(event: AnalyticsEvent(name: "session_deleted", metadata: ["count": "\(records.count)"]))
-        } catch {
-            appContainer.logger.log(level: .error, message: "Failed to delete sessions: \(error.localizedDescription)")
-        }
-    }
-
 }
 
 #Preview {
     let previewContainer = AppContainer.makePreview()
-    return ContentView()
+    return ContentView(container: previewContainer)
         .environmentObject(previewContainer)
         .environment(\.managedObjectContext, previewContainer.persistenceController.container.viewContext)
 }
