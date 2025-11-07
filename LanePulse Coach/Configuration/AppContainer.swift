@@ -288,12 +288,12 @@ private final class UITestFixtureBuilder {
         let metricConfig = MetricConfigRecord(context: context)
         metricConfig.id = UUID()
         metricConfig.coachProfileId = Constants.coachProfileId
-        metricConfig.visibleMetrics = Constants.defaultMetrics as NSArray
+        metricConfig.visibleMetrics = Constants.defaultMetrics
         metricConfig.thresholds = [
             "zone1": 0.6,
             "zone2": 0.7,
             "zone3": 0.8,
             "zone4": 0.9
-        ] as NSDictionary
+        ]
     }
 }
