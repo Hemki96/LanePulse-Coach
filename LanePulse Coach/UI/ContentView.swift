@@ -35,12 +35,18 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Toggle(isOn: Binding(
-                        get: { appContainer.bleManager.isScanning },
-                        set: { $0 ? appContainer.bleManager.startScanning() : appContainer.bleManager.stopScanning() }
-                    )) {
+                    Button {
+                        if appContainer.bleManager.isScanning {
+                            appContainer.bleManager.stopScanning()
+                        } else {
+                            appContainer.bleManager.startScanning()
+                        }
+                    } label: {
                         Label("Scan", systemImage: appContainer.bleManager.isScanning ? "dot.radiowaves.left.and.right" : "antenna.radiowaves.left.and.right")
+                            .labelStyle(.iconOnly)
                     }
+                    .accessibilityLabel(appContainer.bleManager.isScanning ? "Scan stoppen" : "Scan starten")
+                    .accessibilityValue(appContainer.bleManager.isScanning ? "Aktiv" : "Inaktiv")
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()

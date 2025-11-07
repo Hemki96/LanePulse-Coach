@@ -153,7 +153,7 @@ final class PersistenceController {
         attribute.name = name
         attribute.attributeType = .transformableAttributeType
         attribute.attributeValueClassName = className
-        attribute.valueTransformerName = NSValueTransformerName.secureUnarchiveFromDataTransformerName
+        attribute.valueTransformerName = NSValueTransformerName.secureUnarchiveFromDataTransformerName.rawValue
         return attribute
     }
 

@@ -111,7 +111,25 @@ struct SessionDashboardView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
-        ToolbarItemGroup(placement: .navigationBarTrailing) {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button {
+                showingSettings = true
+            } label: {
+                Label("Einstellungen", systemImage: "slider.horizontal.3")
+                    .labelStyle(.iconOnly)
+            }
+            .accessibilityLabel("Einstellungen")
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Button {
+                showingMappings = true
+            } label: {
+                Label("Mappings", systemImage: "link")
+                    .labelStyle(.iconOnly)
+            }
+            .accessibilityLabel("Mappings")
+        }
+        ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Picker("Format", selection: $exportFormat) {
                     Text("CSV").tag(DataExportFormat.csv)
@@ -124,17 +142,9 @@ struct SessionDashboardView: View {
                 }
             } label: {
                 Label("Export", systemImage: "square.and.arrow.up")
+                    .labelStyle(.iconOnly)
             }
-            Button {
-                showingMappings = true
-            } label: {
-                Label("Mappings", systemImage: "link")
-            }
-            Button {
-                showingSettings = true
-            } label: {
-                Label("Einstellungen", systemImage: "slider.horizontal.3")
-            }
+            .accessibilityLabel("Export")
         }
     }
 
