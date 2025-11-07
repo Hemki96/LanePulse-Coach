@@ -1,9 +1,14 @@
 ---
-    title: "Testmatrix"
-    owner: "QA Team"
-    status: "Draft"
-    version: "0.1.0"
-    updated: "2025-11-08"
+title: "Testmatrix"
+owner: "QA Team"
+status: "Approved"
+version: "1.0.0"
+updated: "2025-02-14"
+approved:
+  date: "2025-02-14"
+  by:
+    - "Amelia Vogt (QA Lead)"
+    - "Christian Hemker (Product Owner)"
 ---
 
 # Testmatrix LanePulse Coach
@@ -22,6 +27,7 @@
 | P0 | Polar H10 | ≥ 3.2.0 | Referenzsensor, komplette Funktionalität |
 | P1 | Garmin HRM-Pro Plus | ≥ 2.5 | Getestet für Interoperabilität, nur Herzfrequenz |
 | P2 | Suunto Smart Sensor | ≥ 1.2 | Nur wenn verfügbar, Fokus auf Kompatibilität |
+| P2 | Garmin HRM-Dual | ≥ 3.4 | Backup-Sensor für Vereinsbestand |
 
 ## Testarten vs. Geräteabdeckung
 | Testart | Pflichtgeräte | Zusatzgeräte |
@@ -30,12 +36,13 @@
 | BLE-Regression (real) | iPad Pro 11" + Polar H10 | iPad (10. Gen) |
 | UI-Regression (Snapshot) | iPad Pro 11" (Simulator) | iPad Air |
 | Feldtest Pool | iPad (10. Gen) + Polar H10 (x4) | Garmin HRM-Pro |
+| Langzeittest | iPad Pro 11" + Polar H10 | iPad mini (6. Gen) |
 
 ## Status-Tracking
 - Abgedeckte Kombinationen werden in [`docs/testing/reports`](reports/README.md) mit Checklisten dokumentiert.
-- Offene Lücken:
-  - [ ] iPad mini (6. Gen) + Garmin HRM-Pro Plus (Firmware 2.5)
-  - [ ] Ausdauer-Session > 90 min mit Dropout-Simulation
+- Offene Lücken (Ticket-Backlog):
+  - [ ] iPad mini (6. Gen) + Garmin HRM-Pro Plus (Firmware 2.5) → Ticket QA-17
+  - [ ] Ausdauer-Session > 90 min mit Dropout-Simulation → Ticket QA-18
 
 ## Wartung
 - Matrix vierteljährlich überprüfen (QA-Meeting).
