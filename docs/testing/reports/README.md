@@ -15,4 +15,5 @@ reports/
 ```
 
 Bereits veröffentlichte Ergebnisse:
-- *Noch keine Berichte vorhanden.*
+- [2025-02-15_iPad-mini-Garmin](2025-02-15_ipad-mini-garmin.md)
+- [2025-02-15_Longrun-Dropout](2025-02-15_longrun-dropout.md)
