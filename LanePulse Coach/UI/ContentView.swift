@@ -14,34 +14,12 @@ struct ContentView: View {
         animation: .default
     ) private var sessions: FetchedResults<SessionRecord>
 
-    @State private var exportFormat: DataExportFormat = .csv
-
     var body: some View {
         NavigationSplitView {
             List {
                 ForEach(sessions) { session in
                     NavigationLink {
-                        VStack(spacing: 12) {
-                            Text("Training Session")
-                                .font(.title3)
-                                .bold()
-                            Text(session.startDate, style: .date)
-                            Text(session.startDate, style: .time)
-                            if let lane = session.laneGroup {
-                                Text("Lane: \(lane)")
-                            }
-                            Picker("Export Format", selection: $exportFormat) {
-                                Text("CSV").tag(DataExportFormat.csv)
-                                Text("JSON").tag(DataExportFormat.json)
-                            }
-                            .pickerStyle(.segmented)
-                            Button("Export Data") {
-                                exportData()
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                        .padding()
-                        .navigationTitle("Details")
+                        SessionDashboardView(session: session, container: appContainer)
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             Text(session.startDate, style: .time)
@@ -74,8 +52,16 @@ struct ContentView: View {
             }
             .navigationTitle("Sessions")
         } detail: {
-            Text("Select a session")
-                .foregroundStyle(.secondary)
+            VStack(spacing: 12) {
+                Text("Session wählen")
+                    .font(.title3)
+                    .bold()
+                Text("Starte eine Session, um Board, Scoreboard und Detailansicht zu öffnen.")
+                    .font(.callout)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+            }
+            .padding()
         }
     }
 
@@ -98,14 +84,6 @@ struct ContentView: View {
         }
     }
 
-    private func exportData() {
-        do {
-            let url = try appContainer.exportService.exportData(format: exportFormat)
-            appContainer.logger.log(level: .info, message: "Exported data to \(url.path)")
-        } catch {
-            appContainer.logger.log(level: .error, message: "Export error: \(error.localizedDescription)")
-        }
-    }
 }
 
 #Preview {
