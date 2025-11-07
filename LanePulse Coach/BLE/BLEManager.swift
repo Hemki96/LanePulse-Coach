@@ -8,6 +8,9 @@
 //
 
 import Foundation
+#if canImport(Combine)
+import Combine
+#endif
 #if canImport(CoreBluetooth)
 import CoreBluetooth
 #endif
@@ -40,6 +43,40 @@ enum BLEConnectionState: Equatable {
     case stale(device: BLEDevice, since: Date)
     case reconnecting(device: BLEDevice, attempt: Int)
     case disconnected(device: BLEDevice?, error: Error?)
+
+    static func == (lhs: BLEConnectionState, rhs: BLEConnectionState) -> Bool {
+        switch (lhs, rhs) {
+        case (.idle, .idle), (.scanning, .scanning):
+            return true
+        case let (.connecting(lhsDevice), .connecting(rhsDevice)):
+            return lhsDevice == rhsDevice
+        case let (.connected(lhsDevice), .connected(rhsDevice)):
+            return lhsDevice == rhsDevice
+        case let (.streaming(lhsDevice), .streaming(rhsDevice)):
+            return lhsDevice == rhsDevice
+        case let (.stale(lhsDevice, lhsDate), .stale(rhsDevice, rhsDate)):
+            return lhsDevice == rhsDevice && lhsDate == rhsDate
+        case let (.reconnecting(lhsDevice, lhsAttempt), .reconnecting(rhsDevice, rhsAttempt)):
+            return lhsDevice == rhsDevice && lhsAttempt == rhsAttempt
+        case let (.disconnected(lhsDevice, lhsError), .disconnected(rhsDevice, rhsError)):
+            return lhsDevice == rhsDevice && errorsEqual(lhsError, rhsError)
+        default:
+            return false
+        }
+    }
+
+    private static func errorsEqual(_ lhs: Error?, _ rhs: Error?) -> Bool {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            return true
+        case let (lhs?, rhs?):
+            let lhsError = lhs as NSError
+            let rhsError = rhs as NSError
+            return lhsError.domain == rhsError.domain && lhsError.code == rhsError.code
+        default:
+            return false
+        }
+    }
 }
 
 protocol BLEManaging: AnyObject {

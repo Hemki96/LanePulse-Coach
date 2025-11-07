@@ -1,5 +1,8 @@
 import Foundation
 import CoreData
+#if canImport(Combine)
+import Combine
+#endif
 
 enum BoardLayout: String, CaseIterable, Identifiable {
     case twoByTwo

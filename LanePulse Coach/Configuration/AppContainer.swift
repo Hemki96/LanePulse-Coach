@@ -7,6 +7,9 @@
 
 import Foundation
 import CoreData
+#if canImport(Combine)
+import Combine
+#endif
 
 final class AppContainer: ObservableObject {
     let logger: Logging
