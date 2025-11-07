@@ -1,0 +1,5 @@
+/* Privacy - Bluetooth Always Usage Description */
+"NSBluetoothAlwaysUsageDescription" = "LanePulse Coach uses Bluetooth to stay connected with your lane-tracking hardware and training sensors during workouts.";
+
+/* Privacy - Bluetooth Peripheral Usage Description */
+"NSBluetoothPeripheralUsageDescription" = "LanePulse Coach needs Bluetooth access to pair with your lane-tracking hardware and manage sensor connections.";
