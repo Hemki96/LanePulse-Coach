@@ -34,6 +34,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
     private let analyticsService: AnalyticsServicing
     private let logger: Logging
     private let context: NSManagedObjectContext
+    private let widgetRefresher: WidgetRefreshing?
     private var fetchedResultsController: NSFetchedResultsController<SessionRecord>!
     private var scanningCancellable: AnyCancellable?
 
@@ -41,12 +42,14 @@ final class SessionListViewModel: NSObject, ObservableObject {
          bleManager: BLEManaging,
          analyticsService: AnalyticsServicing,
          logger: Logging,
-         context: NSManagedObjectContext) {
+         context: NSManagedObjectContext,
+         widgetRefresher: WidgetRefreshing? = nil) {
         self.sessionRepository = sessionRepository
         self.bleManager = bleManager
         self.analyticsService = analyticsService
         self.logger = logger
         self.context = context
+        self.widgetRefresher = widgetRefresher
         self.snapshot = .empty
         self.isScanning = bleManager.isScanning
         logger.log(level: .debug, message: "SessionListViewModel initialized. Initial scanning state: \(bleManager.isScanning)")
@@ -60,7 +63,8 @@ final class SessionListViewModel: NSObject, ObservableObject {
                   bleManager: container.bleManager,
                   analyticsService: container.analyticsService,
                   logger: container.logger,
-                  context: container.persistenceController.container.viewContext)
+                  context: container.persistenceController.container.viewContext,
+                  widgetRefresher: container.widgetRefresher)
     }
 
     func addSession() {
@@ -69,6 +73,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
             let record = try sessionRepository.createSession(SessionInput())
             logger.log(level: .info, message: "Session successfully created", metadata: ["sessionID": record.id.uuidString])
             analyticsService.track(event: AnalyticsEvent(name: "session_created"))
+            widgetRefresher?.reloadAll()
         } catch {
             logger.log(level: .error, message: "Failed to add session: \(error.localizedDescription)")
         }
@@ -94,6 +99,7 @@ final class SessionListViewModel: NSObject, ObservableObject {
                                   "sessionIDs": records.map { $0.id.uuidString }.joined(separator: ",")])
             analyticsService.track(event: AnalyticsEvent(name: "session_deleted",
                                                           metadata: ["count": "\(records.count)"]))
+            widgetRefresher?.reloadAll()
         } catch {
             logger.log(level: .error, message: "Failed to delete sessions: \(error.localizedDescription)")
         }
@@ -180,6 +186,7 @@ extension SessionListViewModel: NSFetchedResultsControllerDelegate {
     func controllerDidChangeContent(_ controller: NSFetchedResultsController<NSFetchRequestResult>) {
         logger.log(level: .debug, message: "Fetched results controller signalled content change")
         updateSnapshot()
+        widgetRefresher?.reloadAll()
     }
 }
 

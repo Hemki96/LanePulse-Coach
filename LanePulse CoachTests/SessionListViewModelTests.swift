@@ -8,15 +8,18 @@ final class SessionListViewModelTests: XCTestCase {
     private var bleManager: MockBLEManager!
     private var viewModel: SessionListViewModel!
     private var cancellables: Set<AnyCancellable> = []
+    private var widgetRefresher: WidgetRefresherMock!
 
     override func setUpWithError() throws {
         container = AppContainer.makePreview()
         bleManager = MockBLEManager()
+        widgetRefresher = WidgetRefresherMock()
         viewModel = SessionListViewModel(sessionRepository: container.sessionRepository,
                                          bleManager: bleManager,
                                          analyticsService: container.analyticsService,
                                          logger: container.logger,
-                                         context: container.persistenceController.container.viewContext)
+                                         context: container.persistenceController.container.viewContext,
+                                         widgetRefresher: widgetRefresher)
     }
 
     override func tearDownWithError() throws {
@@ -24,6 +27,7 @@ final class SessionListViewModelTests: XCTestCase {
         viewModel = nil
         bleManager = nil
         container = nil
+        widgetRefresher = nil
     }
 
     func testInitialSnapshotContainsPreviewSessions() throws {
@@ -46,6 +50,7 @@ final class SessionListViewModelTests: XCTestCase {
         viewModel.addSession()
 
         wait(for: [expectation], timeout: 1.0)
+        XCTAssertGreaterThan(widgetRefresher.reloadAllCallCount, 0)
     }
 
     func testDeleteSessionsRemovesItems() throws {
@@ -63,6 +68,7 @@ final class SessionListViewModelTests: XCTestCase {
         viewModel.deleteSessions(at: IndexSet(integer: 0))
 
         wait(for: [expectation], timeout: 1.0)
+        XCTAssertGreaterThan(widgetRefresher.reloadAllCallCount, 0)
     }
 
     func testToggleScanningUpdatesState() throws {
