@@ -21,6 +21,7 @@ Willkommen im **/docs**-Ordner. Diese Sammlung beschreibt Vision, Architektur, A
 - Konkrete Aktiv/Pause-Parameter ([23-ALGORITHMS-ACTIVITY-PAUSE.md](23-ALGORITHMS-ACTIVITY-PAUSE.md))
 - ADR-Verzeichnis unter [decisions/](decisions/) mit Log in [52-DECISION-LOG-ADR.md](52-DECISION-LOG-ADR.md)
 - QA-Artefakte: [Testmatrix](testing/test-matrix.md) & [Berichtsvorlage](testing/reports/README.md)
+- Crash-Monitoring-Plan: [63-CRASH-LOGGING.md](63-CRASH-LOGGING.md)
 
 ## Status (MVP)
 - Scope: Offline, BLE-Only, bis 8 Athlet:innen, Latenz ≤ 1 s
