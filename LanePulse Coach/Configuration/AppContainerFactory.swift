@@ -33,7 +33,11 @@ struct AppContainerFactory {
 
         var hardwareAdapters: [BLEHardwareAdapter] = []
 #if canImport(CoreBluetooth)
-        hardwareAdapters.append(CoreBluetoothAdapter(logger: logger))
+        if Self.hasBluetoothUsageDescription() {
+            hardwareAdapters.append(CoreBluetoothAdapter(logger: logger))
+        } else {
+            logger.log(level: .warning, message: "Missing NSBluetoothAlwaysUsageDescription/NSBluetoothPeripheralUsageDescription in Info.plist; CoreBluetooth adapter disabled.")
+        }
 #endif
 #if canImport(PolarBleSdk)
         hardwareAdapters.append(PolarAdapter(logger: logger))
@@ -92,6 +96,17 @@ struct AppContainerFactory {
             return nil
         }
         return URL(fileURLWithPath: path)
+    }
+    
+    private static func hasBluetoothUsageDescription() -> Bool {
+        let info = Bundle.main.infoDictionary
+        let keys = ["NSBluetoothAlwaysUsageDescription", "NSBluetoothPeripheralUsageDescription"]
+        return keys.contains { key in
+            if let value = info?[key] as? String {
+                return !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
+            return false
+        }
     }
 }
 

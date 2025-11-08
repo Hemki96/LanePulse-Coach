@@ -31,7 +31,55 @@ final class PersistenceController {
 
         container.loadPersistentStores { description, error in
             if let error {
-                fatalError("Unresolved error loading store \(description): \(error)")
+                // Attempt recovery instead of crashing on launch.
+                // 1) Try to remove the persistent store file and retry once (for SQLite stores).
+                // 2) If that fails, fall back to an in-memory store to keep the app usable.
+                let url = description.url
+                if description.type == NSSQLiteStoreType, let url {
+                    // Remove store files (sqlite + -shm/-wal) and retry
+                    let fm = FileManager.default
+                    let basePath = url.path
+                    let shm = URL(fileURLWithPath: basePath + "-shm")
+                    let wal = URL(fileURLWithPath: basePath + "-wal")
+                    try? fm.removeItem(at: url)
+                    try? fm.removeItem(at: shm)
+                    try? fm.removeItem(at: wal)
+
+                    let retryDescription = NSPersistentStoreDescription(url: url)
+                    retryDescription.type = NSSQLiteStoreType
+                    container.persistentStoreDescriptions = [retryDescription]
+
+                    var retryError: Error?
+                    container.loadPersistentStores { _, e in retryError = e }
+                    if let retryError {
+                        // Fall back to in-memory
+                        let memoryDescription = NSPersistentStoreDescription()
+                        memoryDescription.type = NSInMemoryStoreType
+                        container.persistentStoreDescriptions = [memoryDescription]
+                        var memError: Error?
+                        container.loadPersistentStores { _, e in memError = e }
+                        if let memError {
+                            // As a last resort, log and proceed; the app will have no persistent storage.
+                            print("[Persistence] Failed to recover persistent store: \(retryError); fallback failed: \(memError)")
+                        } else {
+                            print("[Persistence] Recovered by falling back to in-memory store.")
+                        }
+                    } else {
+                        print("[Persistence] Store corruption suspected. Recreated SQLite store.")
+                    }
+                } else {
+                    // Non-SQLite store or no URL: fall back to in-memory.
+                    let memoryDescription = NSPersistentStoreDescription()
+                    memoryDescription.type = NSInMemoryStoreType
+                    container.persistentStoreDescriptions = [memoryDescription]
+                    var memError: Error?
+                    container.loadPersistentStores { _, e in memError = e }
+                    if let memError {
+                        print("[Persistence] Failed to load in-memory store: \(memError)")
+                    } else {
+                        print("[Persistence] Using in-memory store due to load error: \(error)")
+                    }
+                }
             }
         }
 
