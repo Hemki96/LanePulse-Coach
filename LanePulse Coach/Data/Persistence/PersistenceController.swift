@@ -47,17 +47,17 @@ final class PersistenceController {
 
                     let retryDescription = NSPersistentStoreDescription(url: url)
                     retryDescription.type = NSSQLiteStoreType
-                    container.persistentStoreDescriptions = [retryDescription]
+                    self.container.persistentStoreDescriptions = [retryDescription]
 
                     var retryError: Error?
-                    container.loadPersistentStores { _, e in retryError = e }
+                    self.container.loadPersistentStores { _, e in retryError = e }
                     if let retryError {
                         // Fall back to in-memory
                         let memoryDescription = NSPersistentStoreDescription()
                         memoryDescription.type = NSInMemoryStoreType
-                        container.persistentStoreDescriptions = [memoryDescription]
+                        self.container.persistentStoreDescriptions = [memoryDescription]
                         var memError: Error?
-                        container.loadPersistentStores { _, e in memError = e }
+                        self.container.loadPersistentStores { _, e in memError = e }
                         if let memError {
                             // As a last resort, log and proceed; the app will have no persistent storage.
                             print("[Persistence] Failed to recover persistent store: \(retryError); fallback failed: \(memError)")
@@ -71,9 +71,9 @@ final class PersistenceController {
                     // Non-SQLite store or no URL: fall back to in-memory.
                     let memoryDescription = NSPersistentStoreDescription()
                     memoryDescription.type = NSInMemoryStoreType
-                    container.persistentStoreDescriptions = [memoryDescription]
+                    self.container.persistentStoreDescriptions = [memoryDescription]
                     var memError: Error?
-                    container.loadPersistentStores { _, e in memError = e }
+                    self.container.loadPersistentStores { _, e in memError = e }
                     if let memError {
                         print("[Persistence] Failed to load in-memory store: \(memError)")
                     } else {
@@ -100,6 +100,12 @@ final class PersistenceController {
             Self.attribute(name: "zoneModel", type: .stringAttributeType, isOptional: true),
             Self.attribute(name: "notes", type: .stringAttributeType, isOptional: true)
         ]
+        do {
+            guard let idProp = athleteEntity.propertiesByName["id"] else { preconditionFailure("AthleteRecord.id property missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "AthleteRecord_id_index", elements: [idElement])
+            athleteEntity.indexes = [index]
+        }
 
         let sensorEntity = NSEntityDescription()
         sensorEntity.name = "SensorRecord"
@@ -113,6 +119,12 @@ final class PersistenceController {
             Self.attribute(name: "firmware", type: .stringAttributeType, isOptional: true),
             batteryAttribute
         ]
+        do {
+            guard let idProp = sensorEntity.propertiesByName["id"] else { preconditionFailure("SensorRecord.id property missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "SensorRecord_id_index", elements: [idElement])
+            sensorEntity.indexes = [index]
+        }
 
         let mappingEntity = NSEntityDescription()
         mappingEntity.name = "MappingRecord"
@@ -124,6 +136,16 @@ final class PersistenceController {
             Self.attribute(name: "since", type: .dateAttributeType),
             Self.attribute(name: "nickname", type: .stringAttributeType, isOptional: true)
         ]
+        do {
+            guard let idProp = mappingEntity.propertiesByName["id"],
+                  let athleteIdProp = mappingEntity.propertiesByName["athleteId"],
+                  let sensorIdProp = mappingEntity.propertiesByName["sensorId"] else { preconditionFailure("MappingRecord index properties missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let athleteIdElement = NSFetchIndexElementDescription(property: athleteIdProp, collationType: .binary)
+            let sensorIdElement = NSFetchIndexElementDescription(property: sensorIdProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "MappingRecord_ids_index", elements: [idElement, athleteIdElement, sensorIdElement])
+            mappingEntity.indexes = [index]
+        }
 
         let sessionEntity = NSEntityDescription()
         sessionEntity.name = "SessionRecord"
@@ -134,6 +156,12 @@ final class PersistenceController {
             Self.attribute(name: "laneGroup", type: .stringAttributeType, isOptional: true),
             Self.attribute(name: "coachNotes", type: .stringAttributeType, isOptional: true)
         ]
+        do {
+            guard let idProp = sessionEntity.propertiesByName["id"] else { preconditionFailure("SessionRecord.id property missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "SessionRecord_id_index", elements: [idElement])
+            sessionEntity.indexes = [index]
+        }
 
         let hrSampleEntity = NSEntityDescription()
         hrSampleEntity.name = "HRSampleRecord"
@@ -145,6 +173,18 @@ final class PersistenceController {
             Self.attribute(name: "timestamp", type: .dateAttributeType),
             Self.attribute(name: "heartRate", type: .integer16AttributeType)
         ]
+        do {
+            guard let idProp = hrSampleEntity.propertiesByName["id"],
+                  let sessionIdProp = hrSampleEntity.propertiesByName["sessionId"],
+                  let athleteIdProp = hrSampleEntity.propertiesByName["athleteId"],
+                  let timestampProp = hrSampleEntity.propertiesByName["timestamp"] else { preconditionFailure("HRSampleRecord index properties missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let sessionIdElement = NSFetchIndexElementDescription(property: sessionIdProp, collationType: .binary)
+            let athleteIdElement = NSFetchIndexElementDescription(property: athleteIdProp, collationType: .binary)
+            let timestampElement = NSFetchIndexElementDescription(property: timestampProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "HRSampleRecord_compound_index", elements: [idElement, sessionIdElement, athleteIdElement, timestampElement])
+            hrSampleEntity.indexes = [index]
+        }
 
         let eventEntity = NSEntityDescription()
         eventEntity.name = "EventRecord"
@@ -160,6 +200,20 @@ final class PersistenceController {
             Self.attribute(name: "end", type: .dateAttributeType, isOptional: true),
             metadataAttribute
         ]
+        do {
+            guard let idProp = eventEntity.propertiesByName["id"],
+                  let sessionIdProp = eventEntity.propertiesByName["sessionId"],
+                  let athleteIdProp = eventEntity.propertiesByName["athleteId"],
+                  let typeProp = eventEntity.propertiesByName["type"],
+                  let startProp = eventEntity.propertiesByName["start"] else { preconditionFailure("EventRecord index properties missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let sessionIdElement = NSFetchIndexElementDescription(property: sessionIdProp, collationType: .binary)
+            let athleteIdElement = NSFetchIndexElementDescription(property: athleteIdProp, collationType: .binary)
+            let typeElement = NSFetchIndexElementDescription(property: typeProp, collationType: .binary)
+            let startElement = NSFetchIndexElementDescription(property: startProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "EventRecord_compound_index", elements: [idElement, sessionIdElement, athleteIdElement, typeElement, startElement])
+            eventEntity.indexes = [index]
+        }
 
         let metricConfigEntity = NSEntityDescription()
         metricConfigEntity.name = "MetricConfigRecord"
@@ -174,6 +228,14 @@ final class PersistenceController {
             visibleMetricsAttribute,
             thresholdsAttribute
         ]
+        do {
+            guard let idProp = metricConfigEntity.propertiesByName["id"],
+                  let coachProfileIdProp = metricConfigEntity.propertiesByName["coachProfileId"] else { preconditionFailure("MetricConfigRecord index properties missing") }
+            let idElement = NSFetchIndexElementDescription(property: idProp, collationType: .binary)
+            let coachProfileIdElement = NSFetchIndexElementDescription(property: coachProfileIdProp, collationType: .binary)
+            let index = NSFetchIndexDescription(name: "MetricConfigRecord_ids_index", elements: [idElement, coachProfileIdElement])
+            metricConfigEntity.indexes = [index]
+        }
 
         model.entities = [
             athleteEntity,
@@ -192,7 +254,6 @@ final class PersistenceController {
         attribute.name = name
         attribute.attributeType = type
         attribute.isOptional = isOptional
-        attribute.isIndexed = (type == .UUIDAttributeType)
         return attribute
     }
 
@@ -224,12 +285,13 @@ extension PersistenceController {
         let context = controller.container.viewContext
         for offset in 0..<5 {
             let record = SessionRecord(context: context)
-            record.id = UUID()
-            record.startDate = Calendar.current.date(byAdding: .minute, value: -offset * 5, to: Date()) ?? Date()
-            record.laneGroup = "Lane \(offset + 1)"
-            record.coachNotes = "Preview session #\(offset + 1)"
+            record.setValue(UUID(), forKey: "id")
+            record.setValue(Calendar.current.date(byAdding: .minute, value: -offset * 5, to: Date()) ?? Date(), forKey: "startDate")
+            record.setValue("Lane \(offset + 1)", forKey: "laneGroup")
+            record.setValue("Preview session #\(offset + 1)", forKey: "coachNotes")
         }
         try? context.save()
         return controller
     }()
 }
+
