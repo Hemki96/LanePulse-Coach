@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SessionDashboardView: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var viewModel: SessionDashboardViewModel
     @State private var showingSettings = false
     @State private var showingMappings = false
@@ -76,10 +78,10 @@ struct SessionDashboardView: View {
             if let progress = viewModel.exportProgress {
                 ExportProgressView(progress: progress)
                     .padding()
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .transition(progressTransition)
             }
         }
-        .animation(.easeInOut, value: viewModel.exportProgress != nil)
+        .animation(reduceMotion ? nil : .easeInOut, value: viewModel.exportProgress != nil)
     }
 
     private var header: some View {
@@ -93,9 +95,19 @@ struct SessionDashboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    private var boardColumns: [GridItem] {
+        let count = dynamicTypeSize.isAccessibilityCategory ? 1 : max(1, viewModel.layout.columns)
+        let minimumWidth: CGFloat = dynamicTypeSize.isAccessibilityCategory ? 260 : 180
+        return Array(repeating: GridItem(.flexible(minimum: minimumWidth, maximum: .infinity), spacing: 12), count: count)
+    }
+
+    private var progressTransition: AnyTransition {
+        reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity)
+    }
+
     private var boardGrid: some View {
         ScrollView {
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: viewModel.layout.columns), spacing: 12) {
+            LazyVGrid(columns: boardColumns, spacing: 12) {
                 ForEach(viewModel.snapshots) { snapshot in
                     BoardTileView(snapshot: snapshot,
                                   metrics: viewModel.visibleMetrics,
@@ -111,7 +123,7 @@ struct SessionDashboardView: View {
                     })
                 }
             }
-            .animation(.easeInOut, value: viewModel.layout)
+            .animation(reduceMotion ? nil : .easeInOut, value: viewModel.layout)
             .padding(.vertical, 4)
         }
         .accessibilityIdentifier("board_scroll")
@@ -218,6 +230,9 @@ private struct BoardTileView: View {
     let onTap: (CoachMetric) -> Void
     let onLongPress: () -> Void
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    @Environment(\.colorScheme) private var colorScheme
+
     var body: some View {
         let primaryMetric = metrics.first ?? .heartRate
         let primaryData = displayProvider(primaryMetric)
@@ -226,6 +241,8 @@ private struct BoardTileView: View {
             HStack {
                 Text(snapshot.name)
                     .font(.headline)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
                 Spacer()
                 if let delta = primaryData.trendDelta {
                     TrendBadge(delta: delta)
@@ -233,8 +250,11 @@ private struct BoardTileView: View {
             }
             VStack(alignment: .leading, spacing: 4) {
                 Text(primaryData.value)
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .minimumScaleFactor(0.6)
+                    .font(.system(.largeTitle, design: .rounded))
+                    .fontWeight(.bold)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
                 if let unit = primaryData.unit {
                     Text(unit.uppercased())
                         .font(.caption)
@@ -254,6 +274,7 @@ private struct BoardTileView: View {
                                 .foregroundStyle(.secondary)
                             Text(data.value)
                                 .font(.headline)
+                                .monospacedDigit()
                             if let unit = data.unit {
                                 Text(unit)
                                     .font(.caption2)
@@ -266,11 +287,12 @@ private struct BoardTileView: View {
             }
             ZoneIndicator(fraction: primaryData.zoneFraction, stops: zoneStops)
         }
-        .padding(16)
+        .padding(.vertical, dynamicTypeSize.isAccessibilityCategory ? 20 : 16)
+        .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(backgroundColor(for: primaryData.zoneFraction))
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
+        .shadow(color: shadowColor, radius: 4, x: 0, y: 2)
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .onTapGesture { onTap(primaryMetric) }
         .onLongPressGesture(perform: onLongPress)
@@ -288,6 +310,10 @@ private struct BoardTileView: View {
             if fraction < stop { return palette[min(index, palette.count - 1)] }
         }
         return palette.last ?? Color.red.opacity(0.4)
+    }
+
+    private var shadowColor: Color {
+        colorScheme == .dark ? Color.black.opacity(0.4) : Color.black.opacity(0.08)
     }
 }
 
@@ -319,6 +345,7 @@ private struct TrendBadge: View {
 private struct ZoneIndicator: View {
     let fraction: Double?
     let stops: [Double]
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -344,7 +371,7 @@ private struct ZoneIndicator: View {
                     }
                 }
             }
-            .frame(height: 10)
+            .frame(height: dynamicTypeSize.isAccessibilityCategory ? 14 : 10)
         }
     }
 
@@ -523,6 +550,7 @@ private struct RecoveryBadge: View {
 
 private struct ScoreboardView: View {
     @ObservedObject var viewModel: SessionDashboardViewModel
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         ScrollView {
@@ -538,12 +566,15 @@ private struct ScoreboardView: View {
                                 .bold()
                             Spacer()
                             Text("\(snapshot.currentBpm ?? 0) bpm")
-                                .font(.system(size: 40, weight: .black, design: .rounded))
+                                .font(.system(.largeTitle, design: .rounded))
+                                .fontWeight(.black)
+                                .monospacedDigit()
                                 .foregroundStyle(scoreColor(for: snapshot))
                         }
                         IntervalChips(markers: viewModel.markersForAthlete(snapshot))
                     }
-                    .padding()
+                    .padding(.vertical, dynamicTypeSize.isAccessibilityCategory ? 20 : 16)
+                    .padding(.horizontal)
                     .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .accessibilityIdentifier("scoreboard_tile_\(snapshot.id.uuidString)")
                 }
