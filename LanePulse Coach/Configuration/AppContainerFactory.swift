@@ -60,6 +60,12 @@ struct AppContainerFactory {
                                             logger: logger,
                                             thresholds: .default,
                                             reportURL: latencyReportURL())
+        let widgetRefresher = WidgetRefreshController(logger: logger)
+        let backgroundTaskCoordinator = BackgroundTaskCoordinator(logger: logger,
+                                                                  hrSampleRepository: hrSampleRepository,
+                                                                  widgetRefresher: widgetRefresher)
+        let notificationManager = PushNotificationManager(logger: logger,
+                                                          widgetRefresher: widgetRefresher)
 
         let container = AppContainer(logger: logger,
                                      persistenceController: persistenceController,
@@ -73,7 +79,10 @@ struct AppContainerFactory {
                                      bleManager: bleManager,
                                      analyticsService: analytics,
                                      exportService: export,
-                                     latencyMonitor: latencyMonitor)
+                                     latencyMonitor: latencyMonitor,
+                                     backgroundTaskCoordinator: backgroundTaskCoordinator,
+                                     notificationManager: notificationManager,
+                                     widgetRefresher: widgetRefresher)
 
         if configuration.featureFlags.seedUITestFixtures {
             UITestFixtureBuilder(container: container).seedMultiStream()

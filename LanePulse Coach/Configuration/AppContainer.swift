@@ -25,6 +25,9 @@ final class AppContainer: ObservableObject {
     let analyticsService: AnalyticsServicing
     let exportService: DataExporting
     let latencyMonitor: LatencyMonitoring
+    let backgroundTaskCoordinator: BackgroundTaskCoordinating
+    let notificationManager: NotificationManaging
+    let widgetRefresher: WidgetRefreshing
 
     init(logger: Logging,
          persistenceController: PersistenceController,
@@ -38,7 +41,10 @@ final class AppContainer: ObservableObject {
          bleManager: BLEManaging,
          analyticsService: AnalyticsServicing,
          exportService: DataExporting,
-         latencyMonitor: LatencyMonitoring) {
+         latencyMonitor: LatencyMonitoring,
+         backgroundTaskCoordinator: BackgroundTaskCoordinating,
+         notificationManager: NotificationManaging,
+         widgetRefresher: WidgetRefreshing) {
         self.logger = logger
         self.persistenceController = persistenceController
         self.athleteRepository = athleteRepository
@@ -52,6 +58,9 @@ final class AppContainer: ObservableObject {
         self.analyticsService = analyticsService
         self.exportService = exportService
         self.latencyMonitor = latencyMonitor
+        self.backgroundTaskCoordinator = backgroundTaskCoordinator
+        self.notificationManager = notificationManager
+        self.widgetRefresher = widgetRefresher
     }
 
     static func makeDefault() -> AppContainer {

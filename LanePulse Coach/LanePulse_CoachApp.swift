@@ -8,14 +8,18 @@ import CoreData
 
 @main
 struct LanePulse_CoachApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var container: AppContainer
 
     init() {
+        let resolvedContainer: AppContainer
         if ProcessInfo.processInfo.arguments.contains("--uitest-multi-stream") {
-            _container = StateObject(wrappedValue: AppContainer.makeUITestMultiStream())
+            resolvedContainer = AppContainer.makeUITestMultiStream()
         } else {
-            _container = StateObject(wrappedValue: AppContainer.makeDefault())
+            resolvedContainer = AppContainer.makeDefault()
         }
+        _container = StateObject(wrappedValue: resolvedContainer)
+        appDelegate.containerProvider = { resolvedContainer }
     }
 
     var body: some Scene {
