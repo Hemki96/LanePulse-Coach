@@ -95,9 +95,10 @@ struct SessionDashboardView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // Use isAccessibilitySize to simplify the grid for very large text sizes (accessibility categories).
     private var boardColumns: [GridItem] {
-        let count = dynamicTypeSize.isAccessibilityCategory ? 1 : max(1, viewModel.layout.columns)
-        let minimumWidth: CGFloat = dynamicTypeSize.isAccessibilityCategory ? 260 : 180
+        let count = dynamicTypeSize.isAccessibilitySize ? 1 : max(1, viewModel.layout.columns)
+        let minimumWidth: CGFloat = dynamicTypeSize.isAccessibilitySize ? 260 : 180
         return Array(repeating: GridItem(.flexible(minimum: minimumWidth, maximum: .infinity), spacing: 12), count: count)
     }
 
@@ -287,7 +288,7 @@ private struct BoardTileView: View {
             }
             ZoneIndicator(fraction: primaryData.zoneFraction, stops: zoneStops)
         }
-        .padding(.vertical, dynamicTypeSize.isAccessibilityCategory ? 20 : 16)
+        .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 20 : 16)
         .padding(.horizontal, 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(backgroundColor(for: primaryData.zoneFraction))
@@ -369,9 +370,10 @@ private struct ZoneIndicator: View {
                                 .offset(x: geometry.size.width * CGFloat(stop))
                         }
                     }
+                    .accessibilityHidden(true)
                 }
             }
-            .frame(height: dynamicTypeSize.isAccessibilityCategory ? 14 : 10)
+            .frame(height: dynamicTypeSize.isAccessibilitySize ? 14 : 10)
         }
     }
 
@@ -478,6 +480,7 @@ private struct TimelineView: View {
                     }
                 }
                 .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
+                .accessibilityHidden(true)
             }
             .frame(height: 120)
         }
@@ -573,7 +576,7 @@ private struct ScoreboardView: View {
                         }
                         IntervalChips(markers: viewModel.markersForAthlete(snapshot))
                     }
-                    .padding(.vertical, dynamicTypeSize.isAccessibilityCategory ? 20 : 16)
+                    .padding(.vertical, dynamicTypeSize.isAccessibilitySize ? 20 : 16)
                     .padding(.horizontal)
                     .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .accessibilityIdentifier("scoreboard_tile_\(snapshot.id.uuidString)")
