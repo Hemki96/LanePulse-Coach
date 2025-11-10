@@ -568,8 +568,10 @@ final class SessionDashboardViewModel: ObservableObject {
         return "\(base) · \(suffix)"
     }
 
-    private static let defaultCoachProfileId = UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
-    static let defaultZoneThresholds: [String: Double] = [
+    private nonisolated(unsafe) static let defaultCoachProfileId =
+        UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
+
+    nonisolated(unsafe) static let defaultZoneThresholds: [String: Double] = [
         "zone1": 0.6,
         "zone2": 0.7,
         "zone3": 0.8,
